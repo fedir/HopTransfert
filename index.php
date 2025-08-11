@@ -50,6 +50,10 @@ set_error_handler(function($severity, $message, $file, $line) {
 // Create required directories
 if (!file_exists(DATA_DIR)) {
     mkdir(DATA_DIR, 0755, true);
+
+    // Create .htaccess to protect data directory
+    $htaccess_content = "Deny from all\n";
+    file_put_contents(DATA_DIR . '/.htaccess', $htaccess_content);
 }
 
 if (!file_exists(DOWNLOAD_DIR)) {
