@@ -2,6 +2,8 @@
 
 **A minimalist, secure, and anonymous file sharing solution**
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/95de7bde-928b-4918-94b6-c3e52f3d628e" />
+
 HopTransfert is a single-file PHP application that enables secure, password-protected file sharing without requiring user registration or complex setup. Perfect for quick, secure file transfers with automatic cleanup.
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue.svg)](https://php.net)
