@@ -332,6 +332,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with security best practices from [OWASP](https://owasp.org/)
 - UI powered by [Tailwind CSS](https://tailwindcss.com/)
 - Inspired by the need for simple, secure file sharing
+- Accelerated development with [Claude.AI](https://claude.ai/)
 
 ## 📞 Support
 
