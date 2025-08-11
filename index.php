@@ -3,7 +3,7 @@
  * HopTransfert
  * A minimalist, single-file, secure PHP application for anonymous file sharing
  * 
- * @author Fedir RYKHKTIK; acclerated development with Claude.AI
+ * @author Fedir RYKHTIK; acclerated development with Claude.AI
  * @version 1.0
  * @requires PHP 8.1+
  */
