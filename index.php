@@ -13,7 +13,7 @@
 // =============================================================================
 
 // Rate limiting
-const DOWNLOAD_RATE_LIMIT_SECONDS = 60;
+const DOWNLOAD_RATE_LIMIT_SECONDS = 5;
 
 // File and directory paths
 const DATA_DIR = __DIR__ . '/data';
@@ -28,6 +28,10 @@ const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'd
 
 // Security
 const PASSWORD_MIN_LENGTH = 6;
+const HASH_SALT = 'your-secret-salt-here'; // change this
+
+// Ressources control
+const MAX_LOG_LINES = 5; // prevent log bloat
 
 // =============================================================================
 // ERROR HANDLING SETUP
@@ -125,29 +129,42 @@ function get_client_ip() {
 }
 
 /**
+ * Hash IP for GDPR compliance
+ */
+function hash_ip($ip) {
+    // normalize IPv4/IPv6
+    $normalized = inet_ntop(inet_pton($ip));
+    return hash('sha256', HASH_SALT . $normalized);
+}
+
+/**
  * Check if IP is rate limited for downloads
  */
 function is_rate_limited($ip) {
     if (!file_exists(DOWNLOAD_LOG)) {
         return false;
     }
-    
-    $log_content = file_get_contents(DOWNLOAD_LOG);
-    $lines = array_filter(explode("\n", $log_content));
+
+    $hashed_ip = hash_ip($ip);
     $current_time = time();
-    
-    foreach (array_reverse($lines) as $line) {
-        $parts = explode('|', $line);
+
+    $fp = fopen(DOWNLOAD_LOG, 'r');
+    if (!$fp) return false;
+
+    while (($line = fgets($fp)) !== false) {
+        $parts = explode('|', trim($line));
         if (count($parts) >= 2) {
-            $log_ip = $parts[0];
-            $timestamp = intval($parts[1]);
-            
-            if ($log_ip === $ip && ($current_time - $timestamp) < DOWNLOAD_RATE_LIMIT_SECONDS) {
+            [$log_ip, $timestamp] = $parts;
+            $timestamp = intval($timestamp);
+
+            if ($log_ip === $hashed_ip && ($current_time - $timestamp) < DOWNLOAD_RATE_LIMIT_SECONDS) {
+                fclose($fp);
                 return true;
             }
         }
     }
-    
+
+    fclose($fp);
     return false;
 }
 
@@ -155,8 +172,18 @@ function is_rate_limited($ip) {
  * Log download attempt
  */
 function log_download($ip) {
-    $log_entry = $ip . '|' . time() . "\n";
+    $hashed_ip = hash_ip($ip);
+    $log_entry = $hashed_ip . '|' . time() . "\n";
+
+    // Append safely
     file_put_contents(DOWNLOAD_LOG, $log_entry, FILE_APPEND | LOCK_EX);
+
+    // Keep log size under control
+    $lines = file(DOWNLOAD_LOG, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (count($lines) > MAX_LOG_LINES) {
+        $lines = array_slice($lines, -MAX_LOG_LINES); // keep recent only
+        file_put_contents(DOWNLOAD_LOG, implode("\n", $lines) . "\n", LOCK_EX);
+    }
 }
 
 /**
