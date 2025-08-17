@@ -110,6 +110,8 @@ const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'd
 
 // Security
 const PASSWORD_MIN_LENGTH = 6;
+
+...
 ```
 
 ### Customization Options
@@ -119,7 +121,10 @@ const PASSWORD_MIN_LENGTH = 6;
 | `DOWNLOAD_RATE_LIMIT_SECONDS` | 60 | Seconds between downloads per IP |
 | `MAX_FILE_SIZE` | 50MB | Maximum file upload size |
 | `ALLOWED_EXTENSIONS` | Various | Whitelist of allowed file types |
+| `HASH_SALT` | 'your-secret-salt-here' | Hash salt used for data anonymization |
 | `PASSWORD_MIN_LENGTH` | 6 | Minimum password length |
+| `MAX_LOG_LINES` | 5 | Prevent log bloat |
+
 
 ## 🔒 Security Features
 
@@ -143,6 +148,12 @@ HopTransfert implements multiple layers of security:
 - **Automatic Cleanup**: Reduces attack surface by removing files
 - **File Type Validation**: Whitelist-based file extension checking
 - **Error Handling**: Secure error logging without information disclosure
+
+### GDPR Compliance
+- Download log: Using hash (with a secret salt) instead of storing full IPs
+
+### Ressource control
+- Download log: Keeping log size bounded (truncating old lines)
 
 ## 🌟 Use Cases
 
