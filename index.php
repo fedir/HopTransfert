@@ -29,7 +29,7 @@ const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'd
 // Security
 const PASSWORD_MIN_LENGTH = 6;
 const HASH_SALT = 'your-secret-salt-here'; // change this
-const CSRF_TOKEN_LENGTH = 32;
+const CSRF_TOKEN_LENGTH = 16;
 
 // Ressources control
 const MAX_LOG_LINES = 5; // prevent log bloat
@@ -97,7 +97,11 @@ function sanitize_input($data) {
  * Generate CSRF token
  */
 function generate_csrf_token() {
-    if (!isset($_SESSION)) {
+    if (session_status() === PHP_SESSION_NONE) {
+        // Configure secure session settings
+        ini_set('session.cookie_httponly', 1);
+        ini_set('session.cookie_secure', 1);
+        ini_set('session.cookie_samesite', 'Strict');
         session_start();
     }
     if (!isset($_SESSION['csrf_token'])) {
@@ -110,7 +114,11 @@ function generate_csrf_token() {
  * Validate CSRF token
  */
 function validate_csrf_token($token) {
-    if (!isset($_SESSION)) {
+    if (session_status() === PHP_SESSION_NONE) {
+        // Configure secure session settings
+        ini_set('session.cookie_httponly', 1);
+        ini_set('session.cookie_secure', 1);
+        ini_set('session.cookie_samesite', 'Strict');
         session_start();
     }
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
