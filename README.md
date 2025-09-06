@@ -16,11 +16,13 @@ HopTransfert is a single-file PHP application that enables secure, password-prot
 - **👤 Anonymous**: No user registration or login required
 - **🗑️ Auto-Cleanup**: Files automatically deleted after download
 - **🛡️ Secure**: OWASP Top 10 compliant with comprehensive security measures
-- **⚡ Rate Limited**: Built-in protection against abuse (1 download/minute per IP)
+- **⚡ Rate Limited**: Built-in protection against abuse (5-second intervals per IP)
 - **📁 Single File**: Entire application in one PHP file
 - **💾 No Database**: Uses JSON for metadata storage
 - **🎨 Clean UI**: Responsive design with Tailwind CSS
 - **📱 Mobile Friendly**: Works perfectly on all devices
+- **🔬 Tested**: Comprehensive security test suite with PHPUnit
+- **🤖 CI/CD**: GitHub Actions for automated testing and code review
 
 ## 🚀 Quick Start
 
@@ -88,11 +90,13 @@ your-web-root/
 5. File and metadata are automatically deleted after successful download
 
 ### 3. Security Features
-- **Rate Limiting**: 1 download per minute per IP address
+- **Rate Limiting**: 5-second intervals per IP address
 - **Secure File Storage**: Files stored outside web root with UUID names
 - **Password Protection**: Secure hashing with verification
 - **Input Sanitization**: All inputs sanitized against XSS
 - **Access Control**: Download directory protected by .htaccess
+- **CSRF Protection**: Cross-Site Request Forgery protection with tokens
+- **HTTP Response Splitting**: Secure header handling
 
 ## ⚙️ Configuration
 
@@ -100,7 +104,7 @@ All configuration is done via constants at the top of `index.php`:
 
 ```php
 // Rate limiting
-const DOWNLOAD_RATE_LIMIT_SECONDS = 60;
+const DOWNLOAD_RATE_LIMIT_SECONDS = 5;
 
 // File upload limits
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -118,7 +122,7 @@ const PASSWORD_MIN_LENGTH = 6;
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `DOWNLOAD_RATE_LIMIT_SECONDS` | 60 | Seconds between downloads per IP |
+| `DOWNLOAD_RATE_LIMIT_SECONDS` | 5 | Seconds between downloads per IP |
 | `MAX_FILE_SIZE` | 50MB | Maximum file upload size |
 | `ALLOWED_EXTENSIONS` | Various | Whitelist of allowed file types |
 | `HASH_SALT` | 'your-secret-salt-here' | Hash salt used for data anonymization |
@@ -148,6 +152,9 @@ HopTransfert implements multiple layers of security:
 - **Automatic Cleanup**: Reduces attack surface by removing files
 - **File Type Validation**: Whitelist-based file extension checking
 - **Error Handling**: Secure error logging without information disclosure
+- **CSRF Protection**: Form-based CSRF tokens prevent unauthorized actions
+- **Session Security**: Optimized session management and security
+- **Response Security**: Prevents HTTP Response Splitting attacks
 
 ### GDPR Compliance
 - Download log: Using hash (with a secret salt) instead of storing full IPs
@@ -297,7 +304,7 @@ tail data/php_errors.log
 #### Rate Limiting Too Strict
 Edit `index.php` and adjust:
 ```php
-const DOWNLOAD_RATE_LIMIT_SECONDS = 30; // Reduce to 30 seconds
+const DOWNLOAD_RATE_LIMIT_SECONDS = 1; // Reduce to 1 second
 ```
 
 ### Debug Mode
@@ -317,7 +324,15 @@ We welcome contributions! Please follow these guidelines:
 ```bash
 git clone https://github.com/yourusername/HopTransfert.git
 cd HopTransfert
+
+# Install development dependencies
+composer install
+
+# Run security tests
+composer test
+
 # Set up your local web server to point to the directory
+php -S localhost:8000 index.php
 ```
 
 ### Code Style
@@ -325,6 +340,8 @@ cd HopTransfert
 - Use meaningful variable names
 - Add comments for complex logic
 - Maintain security-first approach
+- Write tests for new security features
+- Ensure all tests pass before submitting PRs
 
 ### Pull Request Process
 1. Fork the repository

@@ -48,21 +48,31 @@ All configuration is done via constants at the top of `index.php`:
 
 ## Development Commands
 
-This is a pure PHP application with no build system, package manager, or test framework:
+### Testing and Development
+The application now includes PHPUnit testing framework for security testing:
 
-- **No build process** - Direct PHP execution
-- **No linting** - No PHP linting tools configured
-- **No tests** - No test framework present
-- **No dependencies** - Single-file application with no external dependencies
-
-### Testing the Application
 ```bash
+# Install dependencies (PHPUnit)
+composer install
+
+# Run security tests
+composer test
+# or
+./vendor/bin/phpunit
+
+# Run tests with coverage report
+composer test-coverage
+
 # Local development server
 php -S localhost:8000 index.php
 
 # Check PHP syntax
 php -l index.php
 ```
+
+### Dependencies
+- **Runtime**: Pure PHP 8.1+ (no external dependencies)
+- **Development**: PHPUnit for security testing
 
 ### Production Deployment
 ```bash
@@ -79,15 +89,29 @@ chmod 755 . # Ensure directory is writable for data/ and download/ creation
 - **Broken Access Control**: UUID file names + .htaccess protection
 - **Cryptographic Failures**: `password_hash()` for passwords, `hash()` for IP anonymization  
 - **Injection**: `htmlspecialchars()` sanitization for all inputs
-- **Rate Limiting**: 1 download/minute per IP with GDPR-compliant hashed logging
+- **Rate Limiting**: 5-second intervals per IP with GDPR-compliant hashed logging
 - **File Validation**: Extension whitelist and size limits
 - **Auto-cleanup**: Files deleted immediately after download
+- **CSRF Protection**: CSRF tokens for form submissions
+- **HTTP Response Splitting**: Secure header handling
+- **Session Management**: Secure session handling optimizations
 
 ### Key Security Functions
 - `sanitize_input()` - Prevents XSS on all user data
 - `hash_ip()` - GDPR-compliant IP anonymization using SHA256 + salt
 - `is_allowed_file_type()` - Whitelist-based file type validation
+- `generate_csrf_token()` / `verify_csrf_token()` - CSRF protection
 - Password verification using `password_verify()` with secure hashing
+- Secure header handling to prevent HTTP Response Splitting
+
+### Security Testing
+- Comprehensive PHPUnit security test suite in `tests/SecurityTest.php`
+- Tests cover XSS prevention, CSRF protection, file validation, and more
+
+### Continuous Integration
+- GitHub Actions workflows for automated testing and code review
+- `.github/workflows/claude.yml` - Claude PR Assistant workflow
+- `.github/workflows/claude-code-review.yml` - Claude Code Review workflow
 
 ## File Workflow
 
