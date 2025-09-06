@@ -29,6 +29,7 @@ const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'd
 // Security
 const PASSWORD_MIN_LENGTH = 6;
 const HASH_SALT = 'your-secret-salt-here'; // change this
+const CSRF_TOKEN_LENGTH = 32;
 
 // Ressources control
 const MAX_LOG_LINES = 5; // prevent log bloat
@@ -90,6 +91,41 @@ function sanitize_input($data) {
         return array_map('sanitize_input', $data);
     }
     return htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Generate CSRF token
+ */
+function generate_csrf_token() {
+    if (!isset($_SESSION)) {
+        session_start();
+    }
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(CSRF_TOKEN_LENGTH));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Validate CSRF token
+ */
+function validate_csrf_token($token) {
+    if (!isset($_SESSION)) {
+        session_start();
+    }
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Sanitize filename for headers to prevent HTTP Response Splitting
+ */
+function sanitize_filename_for_header($filename) {
+    // Remove any control characters and limit to ASCII printable chars
+    $filename = preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $filename);
+    // Remove quotes and backslashes to prevent header injection
+    $filename = str_replace(['"', '\\', "\r", "\n"], '', $filename);
+    // Limit length to prevent excessively long headers
+    return mb_substr($filename, 0, 255);
 }
 
 /**
@@ -230,6 +266,12 @@ function display_success($message) {
  * Render HTML page
  */
 function render_page($title, $content) {
+    // Set security headers
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Content-Security-Policy: default-src \'self\' cdn.tailwindcss.com; script-src \'self\' cdn.tailwindcss.com; style-src \'self\' \'unsafe-inline\' cdn.tailwindcss.com; img-src \'self\' data:; connect-src \'self\'');
+    
     $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']);
     
     return <<<HTML
@@ -262,7 +304,7 @@ $_POST = sanitize_input($_POST);
 // Route handling
 if (isset($_GET['download'])) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
-        handle_download($_GET['download'], $_POST['password']);
+        handle_download($_GET['download'], $_POST['password'], $_POST['csrf_token'] ?? '');
     } else {
         show_download_form($_GET['download']);
     }
@@ -281,9 +323,15 @@ if (isset($_GET['download'])) {
  */
 function handle_upload() {
     try {
-        // Validate CSRF (basic check for POST request)
+        // Validate request method
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             throw new Exception('Invalid request method');
+        }
+        
+        // Validate CSRF token
+        $csrf_token = $_POST['csrf_token'] ?? '';
+        if (!validate_csrf_token($csrf_token)) {
+            throw new Exception('Invalid CSRF token. Please refresh the page and try again.');
         }
         
         // Check if file was uploaded
@@ -380,6 +428,7 @@ function show_download_form($uuid) {
     
     $file_info = $files_data[$uuid];
     $original_filename = htmlspecialchars($file_info['original_filename']);
+    $csrf_token = generate_csrf_token();
     
     $form = "
         <div class='text-center mb-6'>
@@ -388,6 +437,7 @@ function show_download_form($uuid) {
         </div>
         
         <form method='post' class='space-y-4'>
+            <input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token) . "'>
             <div>
                 <label for='password' class='block text-sm font-medium text-gray-700 mb-2'>Enter Download Password:</label>
                 <input type='password' id='password' name='password' required minlength='" . PASSWORD_MIN_LENGTH . "' class='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500' autofocus>
@@ -409,8 +459,13 @@ function show_download_form($uuid) {
 /**
  * Handle file download
  */
-function handle_download($uuid, $token) {
+function handle_download($uuid, $token, $csrf_token) {
     try {
+        // Validate CSRF token
+        if (!validate_csrf_token($csrf_token)) {
+            throw new Exception('Invalid CSRF token. Please refresh the page and try again.');
+        }
+        
         // Validate UUID format
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $uuid)) {
             throw new Exception('Invalid file ID');
@@ -451,7 +506,7 @@ function handle_download($uuid, $token) {
         log_download($client_ip);
         
         // Serve the file
-        $original_filename = $file_info['original_filename'];
+        $original_filename = sanitize_filename_for_header($file_info['original_filename']);
         $file_size = filesize($file_path);
         
         // Set headers for file download
@@ -460,6 +515,11 @@ function handle_download($uuid, $token) {
         header('Content-Length: ' . $file_size);
         header('Cache-Control: no-cache, must-revalidate');
         header('Pragma: no-cache');
+        
+        // Security headers
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('X-XSS-Protection: 1; mode=block');
         
         // Output file contents
         readfile($file_path);
@@ -483,8 +543,12 @@ function show_upload_form() {
     $max_size_mb = MAX_FILE_SIZE / 1024 / 1024;
     $allowed_types = implode(', ', ALLOWED_EXTENSIONS);
     
+    $csrf_token = generate_csrf_token();
+    
     $form = "
         <form method='post' enctype='multipart/form-data' class='space-y-4'>
+            <input type='hidden' name='csrf_token' value='" . htmlspecialchars($csrf_token) . "'>
+            
             <div>
                 <label for='file' class='block text-sm font-medium text-gray-700 mb-2'>Select File:</label>
                 <input type='file' id='file' name='file' required class='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'>
